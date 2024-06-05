@@ -1,0 +1,6 @@
+<launch>
+  <!-- Khởi động Gazebo với thế giới simple_world -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find diffbot_navigation)/worlds/simple_world.world"/>
+  </include>
+</launch>

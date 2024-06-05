@@ -1,0 +1,178 @@
+<launch>
+  <!-- Use this launch file for navigation simulation -->
+  <!--This launches gazebo itself. Don't launch gazebo explicitly before this  -->
+  <!-- Arguments -->
+  <!--arg name="model" default="$(env DIFFBOT_MODEL)" doc="model type [diffbot, remo]"/-->
+  <arg name="model" default="robot" doc="model type [diffbot, robot, remo]"/>
+  <arg name="description_package" default="$(eval find(arg('model') + '_description'))" />
+  <arg name="urdf_file" default="$(find xacro)/xacro '$(arg description_package)/urdf/$(arg model).urdf.xacro'" />
+<!--============== Create the world. ============== -->
+<!-- Arguments -->
+  <arg name="world_name" default="$(find diffbot_gazebo)/worlds/human_group.world"/>
+  <arg name="debug" default="false"/>
+  <arg name="gui" default="true"/>
+  <arg name="paused" default="false"/>
+  <arg name="use_sim_time" default="true"/>
+  <arg name="headless" default="false"/>
+<!-- We resume the logic in empty_world.launch, changing only the name of the world to be launched -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world_name)"/>
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+    <arg name="headless" value="$(arg headless)"/>
+  </include>
+
+<!--============== Load Robot into the world. ============== -->
+<!-- Run a python script to the send a service call to gazebo_ros to spawn a URDF robot -->
+<!-- Load the URDF into the ROS Parameter Server -->
+  <param name="robot_description" command="$(arg urdf_file)"/>
+
+<!-- Arguments -->
+  <arg name="x_pos" default="0.0"/>
+  <arg name="y_pos" default="-2.0"/>
+  <arg name="z_pos" default="0.0"/>
+  <node name="urdf_spawner" pkg="gazebo_ros" type="spawn_model" respawn="false" output="screen"
+      args="-urdf -model robot -param robot_description -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) ">
+  </node>
+<!--============== Load controller of Robot ============== --> 
+
+
+<!-- load the controllers 
+  <node name="controller_spawner" pkg="controller_manager" type="spawner" respawn="false"
+    output="screen" args="joint_state_controller
+                                            differential_drive_controller"/>-->
+
+
+<!-- convert joint states to TF transforms for rviz, etc -->
+    <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher" >
+    </node>
+    <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"
+        respawn="false" output="screen">
+        <!-- <param name="publish_frequency" type="double" value="30.0" > -->
+    </node>
+<!-- ============================================================================= -->
+    <!-- <node name="rqt_robot_steering" pkg="rqt_robot_steering" type="rqt_robot_steering">
+        <param name="default_topic" value="/cmd_vel"/>
+    </node> -->
+    
+<!-- Static tf between map and odom 
+  <arg name="static_tf" default="true" />
+  <node if="$(arg static_tf)" pkg="tf2_ros" type="static_transform_publisher" name="odom_wrt_map_tf" args="0 0 0 0 0 0 map odom" />-->
+  
+
+<!--============== Navigation stack of Robot ============== --> 
+<!-- Khoi chay Map server -->
+  <!-- Arguments -->
+  <arg name="map_file" default="$(find diffbot_navigation)/maps/office_env_w.yaml"/>
+  
+  <node pkg="map_server" name="map_server" type="map_server" args="$(arg map_file)"/>
+
+<!-- Khoi chay AMCL -->
+  <!-- Arguments -->
+  <arg name="scan_topic"     default="/scan"/>
+  <arg name="initial_pose_x" default="0.0"/>
+  <arg name="initial_pose_y" default="-2.0"/>
+  <arg name="initial_pose_a" default="0,0"/>
+  <arg name="use_map_topic"   default="true"/>
+  <arg name="odom_frame_id"   default="/odom"/>
+  <arg name="base_frame_id"   default="/base_footprint"/>
+  <arg name="global_frame_id" default="/map"/>
+
+  <!-- AMCL -->
+  <node pkg="amcl" type="amcl" name="amcl">
+  
+    <param name="use_map_topic"             value="$(arg use_map_topic)"/>
+    <param name="min_particles"             value="500"/>
+    <param name="max_particles"             value="5000"/>
+    <param name="kld_err"                   value="0.02"/>
+    <param name="kld_z"                     value="0.99"/>
+    <param name="update_min_d"              value="0.15"/>
+    <param name="update_min_a"              value="0.15"/>
+    <param name="resample_interval"         value="1"/>
+    <param name="transform_tolerance"       value="0.1"/>
+    <param name="recovery_alpha_slow"       value="0.00"/>
+    <param name="recovery_alpha_fast"       value="0.00"/>
+    <param name="initial_pose_x"            value="$(arg initial_pose_x)"/>
+    <param name="initial_pose_y"            value="$(arg initial_pose_y)"/>
+    <param name="initial_pose_a"            value="$(arg initial_pose_a)"/>
+    <param name="gui_publish_rate"          value="50.0"/>
+
+    <remap from="scan"                      to="$(arg scan_topic)"/>
+    <param name="laser_max_range"           value="12"/>
+    <param name="laser_max_beams"           value="30"/>
+    <param name="laser_z_hit"               value="0.95"/>
+    <param name="laser_z_short"             value="0.1"/>
+    <param name="laser_z_max"               value="0.05"/>
+    <param name="laser_z_rand"              value="0.05"/>
+    <param name="laser_sigma_hit"           value="0.2"/>
+    <param name="laser_lambda_short"        value="0.1"/>
+    <param name="laser_likelihood_max_dist" value="2.0"/>
+    <param name="laser_model_type"          value="likelihood_field"/>
+
+    <!-- Which model to use, either "diff", "omni", "diff-corrected" or "omni-corrected". -->
+    <!-- diff-corrected was introduced to fix a bug and keep tuned robot's using the old modle (diff) working. -->
+    <!-- For the bug see http://wiki.ros.org/amcl#Parameters and https://github.com/ros-planning/navigation/issues/20 -->
+    <param name="odom_model_type"           value="diff-corrected"/>
+    <param name="odom_alpha1"               value="0.1"/>
+    <param name="odom_alpha2"               value="0.1"/>
+    <param name="odom_alpha3"               value="0.1"/>
+    <param name="odom_alpha4"               value="0.1"/>
+    <param name="odom_frame_id"             value="$(arg odom_frame_id)"/>
+    <param name="base_frame_id"             value="$(arg base_frame_id)"/>
+    <param name="global_frame_id"           value="$(arg global_frame_id)"/>
+  </node>
+<!-- Khoi chay move_base -->
+<!-- Arguments -->  
+    <arg name="cmd_vel_topic" default="/cmd_vel" />
+    <arg name="odom_topic" default="/odom" />
+    <arg name="local_planner" default="teb" doc="Local planner can be either dwa, base, teb or pose"/>
+    <arg name="move_forward_only" default="true"/>
+    <!-- <arg name="base_global_planner" default="srv_client_plugin/SrvClientPlugin"/> -->
+    <!--arg name="base_global_planner" value="carrot_planner/CarrotPlanner"/-->
+<!-- move_base -->
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+
+      <param name="planner_frequency" value="0.0" />
+      <param name="planner_patience" value="5.0" />
+
+      <!-- base_local_planner parameter is set in the loaded parameter file depending on the local_planner argument -->
+      <param name="base_local_planner" value="teb_local_planner/TebLocalPlannerROS" /> 
+      <!-- <rosparam file="$(find diffbot_navigation)/config/teb_local_planner_params.yaml" command="load" /> -->
+      <param name="TebLocalPlannerROS/map_frame" value="$(arg global_frame_id)"/>
+	    <param name="TebLocalPlannerROS/odom_topic" value="$(arg odom_topic)"/>
+
+      <!-- <param name="base_local_planner" value="dwa_local_planner/DWAPlannerROS" /> -->
+      <rosparam file="$(find diffbot_navigation)/config/$(arg local_planner)_local_planner_params.yaml" command="load" />
+      <rosparam file="$(find diffbot_navigation)/config/move_base_params.yaml" command="load" />
+      <!-- global costmap params -->
+      <rosparam file="$(find diffbot_navigation)/config/costmap_common_params.yaml" command="load" ns="global_costmap" />
+      <rosparam file="$(find diffbot_navigation)/config/costmap_global_params.yaml" command="load" />
+      <!-- local costmap params -->
+      <rosparam file="$(find diffbot_navigation)/config/costmap_common_params.yaml" command="load" ns="local_costmap" />
+      <rosparam file="$(find diffbot_navigation)/config/costmap_local_params.yaml" command="load" />
+      <!-- remappings -->
+      <remap from="cmd_vel" to="$(arg cmd_vel_topic)"/>
+      <remap from="odom" to="$(arg odom_topic)"/>
+      <param name="DWAPlannerROS/min_vel_x" value="0.0" if="$(arg move_forward_only)" />
+    </node>
+<!--============== Launch visualization in rviz  ============== -->    
+<!-- Arguments -->    
+    <arg name="rvizconfig" default="$(find diffbot_navigation)/rviz/diffbot_navigation.rviz" />
+    <node pkg="rviz" type="rviz" name="rviz" required="true" args="-d $(arg rvizconfig)"/>
+
+<!--============== Show Layered costmap in rviz  ============== -->    
+    <!-- <node pkg="social_navigation_layers" name="approaching_pose_dsz_node" type="approaching_pose_dsz_node" /> -->
+
+    <!-- <node name="human_group_layer_from_gazebo" pkg="social_navigation_layers" type="human_group_layer_from_gazebo" output="screen"/> -->
+
+    <node pkg="social_navigation_layers" name="gazebo_ros_communication_node" type="gazebo_ros_communication" />
+
+<!-- Start service server that responds with a plan for global path planning -->
+    <!-- <node pkg="global_path_planning" name="global_path_planner" type="path_planning_server.py" output="screen"/>  -->
+
+///
+  <!-- convert laser pointclound to detect humans -->
+   <!-- <node pkg="social_navigation_layers" type="mybot_convert_laser_pointcloud" name="mybot_convert_laser_pointcloud"/>  -->
+</launch>

@@ -1,0 +1,66 @@
+<?xml version="1.0" ?>
+<sdf version="1.6">
+  <world name="default">
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- A sun -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- A simple differential drive robot -->
+    <include>
+      <uri>model://pioneer3dx</uri>
+    </include>
+
+    <!-- Static actors to simulate people -->
+    <actor name="actor0">
+      <pose>0 2 1 0 0 0</pose>
+      <skin>
+        <filename>model://actor/meshes/actor.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model://actor/meshes/Walking.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="0" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>0 2 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>10 2 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <actor name="actor1">
+      <pose>0 -2 1 0 0 0</pose>
+      <skin>
+        <filename>model://actor/meshes/actor.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model://actor/meshes/Walking.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="1" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>0 -2 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>10 -2 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </world>
+</sdf>

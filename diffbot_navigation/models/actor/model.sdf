@@ -1,0 +1,37 @@
+<?xml version="1.6" ?>
+<sdf version="1.6">
+  <model name="actor">
+    <pose>0 0 1 0 0 0</pose>
+    <static>false</static>
+    <link name="link">
+      <visual name="visual">
+        <geometry>
+          <mesh>
+            <uri>model://actor/meshes/actor.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+    </link>
+    <actor name="actor">
+      <skin>
+        <filename>model://actor/meshes/actor.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model://actor/meshes/Walking.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="0" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>0 0 0 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>10 0 0 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </model>
+</sdf>

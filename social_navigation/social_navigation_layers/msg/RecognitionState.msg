@@ -1,0 +1,2 @@
+bool startRecog
+bool isCorrect

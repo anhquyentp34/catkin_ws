@@ -1,0 +1,136 @@
+<?xml version="1.0" ?>
+<sdf version="1.5">
+  <world name="default">
+    <!-- A ground plane -->
+    <include>
+      <uri>model://ground_plane</uri>
+    </include>
+
+    <!-- A sun -->
+    <include>
+      <uri>model://sun</uri>
+    </include>
+
+    <!-- A simple differential drive robot -->
+    <include>
+      <uri>model://pioneer3dx</uri>
+    </include>
+
+    <!-- Actors to simulate people -->
+    <actor name="actor0">
+      <pose>0 2 1 0 0 0</pose>
+      <skin>
+        <filename>model/walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model/walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="0" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>0 2 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>10 2 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <actor name="actor1">
+      <pose>0 -2 1 0 0 0</pose>
+      <skin>
+        <filename>model/walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model/walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="1" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>0 -2 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>10 -2 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <actor name="actor2">
+      <pose>-2 0 1 0 0 0</pose>
+      <skin>
+        <filename>model/walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model/walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="2" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>-2 0 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>8 0 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <actor name="actor3">
+      <pose>-4 4 1 0 0 0</pose>
+      <skin>
+        <filename>model/walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model/walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="3" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>-4 4 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>6 4 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+
+    <actor name="actor4">
+      <pose>-4 -4 1 0 0 0</pose>
+      <skin>
+        <filename>model/walk.dae</filename>
+      </skin>
+      <animation name="walking">
+        <filename>model/walk.dae</filename>
+        <interpolate_x>true</interpolate_x>
+      </animation>
+      <script>
+        <trajectory id="4" type="walk">
+          <waypoint>
+            <time>0</time>
+            <pose>-4 -4 1 0 0 0</pose>
+          </waypoint>
+          <waypoint>
+            <time>10</time>
+            <pose>6 -4 1 0 0 0</pose>
+          </waypoint>
+        </trajectory>
+      </script>
+    </actor>
+  </world>
+</sdf>
+
