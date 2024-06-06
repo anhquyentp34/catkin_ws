@@ -3,39 +3,105 @@
 #include <gazebo_msgs/ModelState.h>
 #include <gazebo_msgs/ModelStates.h>
 #include <gazebo_msgs/SetModelState.h>
-//#include <gazebo_plugins/gazebo_ros_camera.h>
-//#include <gazebo_ros/PhysicsConfig.h>
-//#include <gazebo_ros_control/gazebo_ros_control_plugin.h>
+#include <geometry_msgs/Pose2D.h>
 #include <tf/tf.h>
 #include <math.h>
-// people_msgs
+// Thu vien people_msgs
 #include <people_msgs/Person.h>
 #include <people_msgs/People.h>
 //
 #include <iostream>
 //
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/mystuff.h"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/data.h"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/circle.h"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/Utilities.cpp"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/CircleFitByTaubin.cpp"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/CircleFitByPratt.cpp"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/CircleFitByKasa.cpp"
+#include "/home/quyenanhpt/catkin_ws/src/social_navigation/social_navigation_layers/include/social_navigation_layers/circle_fitting/CircleFitByHyper.cpp"
+
+// Khai bao cac publisher cua node
 ros::Publisher model_state_pub, human_pose_pub;
-//
+
+// Cac bien toan cuc de luu toa do va goc hien tai cua con nguoi
 double cur_hx, cur_hy, cur_htheta;
 
-//
-void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &msg)
-{
-    // Find the humans state
+// Khai bao vector luu toa do nhom nguoi
+std::vector<geometry_msgs::Pose2D> vhgroup_;
+
+// Ham phat hien nhom nguoi dua tren trang thai mo hinh tu Gazebo
+std::vector<geometry_msgs::Pose2D> humanGroupDetection(const gazebo_msgs::ModelStates &human_states) 
+    {
+    geometry_msgs::Pose2D pose;
+    std::vector<geometry_msgs::Pose2D> vpose;
+
+    Circle circle;
+    reals BEDataX[3] = {0, 0, 0}, BEDataX1[3] = {0, 0, 0}, BEDataX2[2] = {0, 0};
+    reals BEDataY[3] = {0, 0, 0}, BEDataY1[3] = {0, 0, 0}, BEDataY2[2] = {0, 0};
+
+    int k = 0, k1 = 0;
+    for (int i = 0; i < human_states.name.size(); i++) {
+        ROS_INFO("Checking human state: %s", human_states.name[i].c_str());
+
+        // Phat hien nhom nguoi dung gan nhau
+        if ((human_states.name[i] == "actor13") || (human_states.name[i] == "actor14"))
+        {
+            if (k < 2) 
+            {
+                BEDataX2[k] = human_states.pose[i].position.x;
+                BEDataY2[k] = human_states.pose[i].position.y;
+                k++;
+            }
+            if (k == 2) 
+            {
+                pose.x = (BEDataX2[0] + BEDataX2[1]) / 2;
+                pose.y = (BEDataY2[0] + BEDataY2[1]) / 2;
+
+                double deltaX = BEDataX2[0] - BEDataX2[1];
+                double deltaY = BEDataY2[0] - BEDataY2[1];
+                pose.theta = sqrt(deltaX * deltaX + deltaY * deltaY) / 2;
+                vpose.push_back(pose);
+                k = 0;  // Dat lai bien dem
+            }
+        }
+
+        // Phat hien nhom nguoi tao thanh hinh tron
+        if ((human_states.name[i] == "actor1") || (human_states.name[i] == "actor2") || (human_states.name[i] == "actor3") ||
+            (human_states.name[i] == "actor10") || (human_states.name[i] == "actor11") || (human_states.name[i] == "actor12")) {
+            if (k1 < 3) {
+                BEDataX1[k1] = human_states.pose[i].position.x;
+                BEDataY1[k1] = human_states.pose[i].position.y;
+                k1++;
+            }
+            if (k1 == 3) {
+                Data data1(3, BEDataX1, BEDataY1);
+                circle = CircleFitByTaubin(data1);
+                pose.x = circle.a;
+                pose.y = circle.b;
+                pose.theta = circle.r;
+                vpose.push_back(pose);
+                k1 = 0;  // Dat lai bien dem
+            }
+        }
+    }
+    return vpose;
+    }   
+
+// Ham callback xu ly du lieu tu topic /gazebo/model_states
+void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &msg) {
     tf::Quaternion quat;
     double dummy;
-    gazebo_msgs::ModelState human_state;               //human_state
-
+    gazebo_msgs::ModelStates human_state;
 
     people_msgs::People people;
     people_msgs::Person person;
 
-    // robot pose
     double cur_rx, cur_ry, cur_rtheta;
-    for(size_t i =0; i<msg->name.size(); i++)
-    {
-        if(msg->name[i] == "robot")
-        {
+
+    // Tim toa do va goc cua robot
+    for (size_t i = 0; i < msg->name.size(); i++) {
+        if (msg->name[i] == "robot") {
             tf::quaternionMsgToTF(msg->pose[i].orientation, quat);
             tf::Matrix3x3 mat(quat);
             mat.getRPY(dummy, dummy, cur_rtheta);
@@ -45,85 +111,78 @@ void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &msg)
             break;
         }
     }
-    // people
-    int k = 0;
-    for(size_t i =0; i<msg->name.size(); i++)
+
+    // Duyet qua tat ca cac mo hinh de tim nguoi
+    for (size_t i = 0; i < msg->name.size(); i++) 
     {
-        if((msg->name[i] == "actor0")||(msg->name[i] == "actor1")||(msg->name[i] == "actor2")
-          ||(msg->name[i] == "actor4")||(msg->name[i] == "actor5")||(msg->name[i] == "actor6")
-          ||(msg->name[i] == "actor7")||(msg->name[i] == "actor8"))
+        if ((msg->name[i] == "actor0") || (msg->name[i] == "actor1") || (msg->name[i] == "actor2") || 
+            (msg->name[i] == "actor3") || (msg->name[i] == "actor4") || (msg->name[i] == "actor5") ||
+            (msg->name[i] == "actor6") || (msg->name[i] == "actor7") || (msg->name[i] == "actor8") ||
+            (msg->name[i] == "actor9") || (msg->name[i] == "actor10") || (msg->name[i] == "actor11") ||
+            (msg->name[i] == "actor12") || (msg->name[i] == "actor13") || (msg->name[i] == "actor14")) 
         {
-             k = k+ 1;
-            //
             tf::quaternionMsgToTF(msg->pose[i].orientation, quat);
             tf::Matrix3x3 mat(quat);
             double cur_ptheta;
             mat.getRPY(dummy, dummy, cur_ptheta);
-            //ROS_INFO("cur_ptheta_p%d=%f",k,cur_ptheta);
-            //
+
             person.position.x = msg->pose[i].position.x;
             person.position.y = msg->pose[i].position.y;
             person.position.z = 0;
 
-            // moving people
-            if((msg->name[i] == "actor4")||(msg->name[i] == "actor5")||(msg->name[i] == "actor6")){
-                person.velocity.x = 0.25*cos(cur_ptheta);
-                person.velocity.y = 0.25*sin(cur_ptheta);
+            // Thiet lap van toc cho cac dien vien
+            if ((msg->name[i] == "actor4") || (msg->name[i] == "actor5") || (msg->name[i] == "actor6"))
+            {
+                person.velocity.x = 0.25 * cos(cur_ptheta);
+                person.velocity.y = 0.25 * sin(cur_ptheta);
                 person.velocity.z = 0;
-            }
-            else{
-                person.velocity.x = 0.1*cos(cur_ptheta);
-                person.velocity.y = 0.1*sin(cur_ptheta);
+            } 
+            else 
+            {
+                person.velocity.x = 0.1 * cos(cur_ptheta);
+                person.velocity.y = 0.1 * sin(cur_ptheta);
                 person.velocity.z = 0;
             }
 
-            // sitting people
-            if((msg->name[i] == "actor8")||(msg->name[i] == "actor31")||(msg->name[i] == "actor32")||(msg->name[i] == "actor33")||(msg->name[i] == "actor34")||(msg->name[i] == "actor35")
-          ||(msg->name[i] == "actor36")||(msg->name[i] == "actor37")||(msg->name[i] == "actor38")||(msg->name[i] == "actor39")||(msg->name[i] == "actor40")){
-
+            // Dat do tin cay cho cac dien vien
+            if ((msg->name[i] == "actor_30") || (msg->name[i] == "actor31") || (msg->name[i] == "actor32") ||
+                (msg->name[i] == "actor33") || (msg->name[i] == "actor34") || (msg->name[i] == "actor35") ||
+                (msg->name[i] == "actor36") || (msg->name[i] == "actor37") || (msg->name[i] == "actor38") ||
+                (msg->name[i] == "actor39") || (msg->name[i] == "actor40")) 
+                {
                 person.reliability = 0;
-            }
-            else{
+                } 
+                else 
+                {
                 person.reliability = 1;
-            }
+                }
+
             person.name = "people_info";
             people.people.push_back(person);
-
         }
+    }
 
-        for(size_t i =0; i<msg->name.size(); i++)
+    // Lay cac nhom nguoi tu ham humanGroupDetection va them vao message people
+    vhgroup_ = humanGroupDetection(*msg);
+    int group_people_flag = true;
+    if (group_people_flag && !vhgroup_.empty()) 
+    {
+        for (const auto &group_pose : vhgroup_) 
         {
-            if(msg->name[i] == "actor1")
-            {
-                //ROS_INFO("p0 pose (x,y,theta) ith %d = (%f, %f, %f)",i, msg->pose[i].position.x,msg->pose[i].position.y,msg->pose[i].position.z);
-                human_state.pose.position.x = msg->pose[i].position.x + 0.01;// 0.2 m/s
-                //human_state.pose.position.y = msg->pose[i].position.y;
-                //geometry_msgs::Pose new_pose.orientation = tf::createQuaternionFromRPY(0, 0, yaw)
-                human_state.pose.orientation = msg->pose[i].orientation;
-                human_state.reference_frame = "link";
-                human_state.model_name = msg->name[i]; //"p0";
-                //model_state_pub.publish(human_state);
-                break;
-            }
+            person.position.x = group_pose.x;
+            person.position.y = group_pose.y;
+            person.position.z = 0;
+
+            person.velocity.x = 0;
+            person.velocity.y = 0;
+            person.velocity.z = 0;
+            person.reliability = group_pose.theta;
+            person.name = "group_people_info";
+            people.people.push_back(person);
         }
     }
-    // group people
-    int group_people_flag = false;
-    if(group_people_flag){
-        person.position.x = 4.25;
-        person.position.y = 0;
-        person.position.z = 0;
-
-        person.velocity.x = 0;
-        person.velocity.y = 0;
-        person.velocity.z = 0;
-        // radius of the human group
-        person.reliability = 1.25;
-        person.name = "group_people_info";
-        people.people.push_back(person);
-    }
-    // object poeple
-    int object_people_flag = false;
+    // object poeple them vao message people
+    int object_people_flag = true;
     if(object_people_flag){
         person.position.x = -4.8;
         person.position.y = 2.8;
@@ -131,35 +190,39 @@ void modelStatesCallback(const gazebo_msgs::ModelStatesConstPtr &msg)
         //person.position.y = 1.8;
         person.position.z = 0;
 
-        person.velocity.x = cos(-M_PI_4l);
-        person.velocity.y = sin(-M_PI_4l);
+        person.velocity.x = 1; //os(-M_PI_4l);
+        person.velocity.y = 1; //sin(-M_PI_4l);
         person.velocity.z = 0;
         // distance from human to object
-        person.reliability = 2.0;
+        person.reliability = 3.0;
         person.name = "object_people_info";
         people.people.push_back(person);
     }
     //
-    people.header.frame_id = "map"; // global map
+    people.header.frame_id = "map";  // global map
     //people.header.seq = human_body.header.seq;
     //people.header.stamp = human_body.header.stamp;
     // pulish
     human_pose_pub.publish(people);
 }
-//
-int main(int argc, char ** argv)
+
+// Ham chinh cua chuong trinh
+int main(int argc, char **argv) 
 {
     ros::init(argc, argv, "gazebo_ros_communication_node");
     ros::NodeHandle nh;
+
+    // Khoi tao cac publisher va subscriber
     model_state_pub = nh.advertise<gazebo_msgs::ModelState>("/gazebo/set_model_state", 5);
-    human_pose_pub = nh.advertise<people_msgs::People>("/human_information",5);
+    human_pose_pub = nh.advertise<people_msgs::People>("/human_information", 5);
     ros::Subscriber model_states_sub = nh.subscribe("/gazebo/model_states", 100, &modelStatesCallback);
-    //
+
+    // Vong lap xu ly chinh cua chuong trinh
     ros::Rate rate(30);
-    while(ros::ok())
+    while (ros::ok()) 
     {
         ros::spinOnce();
         rate.sleep();
     }
-   return 0;
+    return 0;
 }

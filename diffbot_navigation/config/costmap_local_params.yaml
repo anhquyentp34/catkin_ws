@@ -13,10 +13,11 @@ local_costmap:
     - {name: obstacles_layer, type: "costmap_2d::ObstacleLayer"} #2D obstacle
     - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
     - {name: proxemic, type: "social_navigation_layers::ProxemicLayer"}
-    # - {name: passing, type: "social_navigation_layers::PassingLayer"}
+    - {name: passing, type: "social_navigation_layers::PassingLayer"}
     # - {name: simplelayer, type: "simple_layer_namespace::SimpleLayer"}
     - {name: human_group_layer, type: "social_navigation_layers::HumanGroupLayer"}
-    # - {name: human_group_layer, type: "human_group_layer_namespace::HumanGroupLayer"}
+    - {name: human_object_layer, type: "social_navigation_layers::HumanObjectLayer"}
+   
     #- {name: gridlayer, type: "simple_layer_namespace::GridLayer"}
   static_layer:
     enabled:              True
@@ -55,4 +56,11 @@ local_costmap:
   #   covariance: 0.15
   #   factor: 1
   #   keep_time: 0.75
-  
+
+  human_object_layer:
+    enabled: True
+  #   cutoff: 125 
+  #   amplitude: 254
+  #   covariance: 0.15
+  #   factor: 1
+  #   keep_time: 0.75

@@ -3,27 +3,24 @@
 
 #include <angles/angles.h>
 #include <geometry_msgs/PointStamped.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
 
 namespace social_navigation_layers
 {
-  class HumanGroupLayer : public ProxemicLayer
+  class HumanObjectLayer : public ProxemicLayer
   {
     public:
-        HumanGroupLayer() : ProxemicLayer() {
-          // ROS_INFO("Initializing HumanGroupLayer...");
+        HumanObjectLayer() : ProxemicLayer() {
 
     }
 
     virtual void updateBounds(double origin_x, double origin_y, double origin_z, double* min_x, double* min_y, double* max_x, double* max_y){
-        // ROS_INFO("Updating Bounds in HumanGroupLayer...");
         boost::recursive_mutex::scoped_lock lock(lock_);
 
         std::string global_frame = layered_costmap_->getGlobalFrameID();
-        transformed_group_people_.clear();
+        transformed_object_people_.clear();
 
-        for(unsigned int i=0; i<group_people_list_.people.size(); i++){
-            people_msgs::Person& person = group_people_list_.people[i];
+        for(unsigned int i=0; i<object_people_list_.people.size(); i++){
+            people_msgs::Person& person = object_people_list_.people[i];
             people_msgs::Person tpt;
             geometry_msgs::PointStamped pt, opt;
 
@@ -31,7 +28,7 @@ namespace social_navigation_layers
               pt.point.x = person.position.x;
               pt.point.y = person.position.y;
               pt.point.z = person.position.z;
-              pt.header.frame_id = group_people_list_.header.frame_id;
+              pt.header.frame_id = object_people_list_.header.frame_id;
               tf_->transform( pt, opt, global_frame);
               tpt.position.x = opt.point.x;
               tpt.position.y = opt.point.y;
@@ -40,21 +37,22 @@ namespace social_navigation_layers
               pt.point.x += person.velocity.x;
               pt.point.y += person.velocity.y;
               pt.point.z += person.velocity.z;
-              tf_->transform( pt, opt, global_frame);
+              tf_->transform(pt, opt, global_frame);
 
               tpt.velocity.x = tpt.position.x - opt.point.x;
               tpt.velocity.y = tpt.position.y - opt.point.y;
               tpt.velocity.z = tpt.position.z - opt.point.z;
+
               // Radius of the human group
               tpt.reliability = person.reliability;
 
-              transformed_group_people_.push_back(tpt);
+              transformed_object_people_.push_back(tpt);
 
               double mag = sqrt(pow(tpt.velocity.x,2) + pow(person.velocity.y, 2));
               double factor = 1.0 + mag * factor_;
               double point = get_radius(cutoff_, amplitude_, covar_ * factor );
 
-              point = person.reliability;
+              point = person.reliability; //point = 1.5;
 
               *min_x = std::min(*min_x, tpt.position.x - point);
               *min_y = std::min(*min_y, tpt.position.y - point);
@@ -78,11 +76,10 @@ namespace social_navigation_layers
     }
 
     virtual void updateCosts(costmap_2d::Costmap2D& master_grid, int min_i, int min_j, int max_i, int max_j){
-        // ROS_INFO("Updating costs in HumanGroupLayer...");
         boost::recursive_mutex::scoped_lock lock(lock_);
         if(!enabled_) return;
 
-        if( group_people_list_.people.size() == 0 )
+        if( object_people_list_.people.size() == 0 )
           return;
         if( cutoff_ >= amplitude_)
             return;
@@ -91,7 +88,7 @@ namespace social_navigation_layers
         costmap_2d::Costmap2D* costmap = layered_costmap_->getCostmap();
         double res = costmap->getResolution();
 
-        for(p_it = transformed_group_people_.begin(); p_it != transformed_group_people_.end(); ++p_it){
+        for(p_it = transformed_object_people_.begin(); p_it != transformed_object_people_.end(); ++p_it){
             people_msgs::Person person = *p_it;
             double angle = atan2(person.velocity.y, person.velocity.x)+1.51;
             double mag = sqrt(pow(person.velocity.x,2) + pow(person.velocity.y, 2));
@@ -99,9 +96,10 @@ namespace social_navigation_layers
             double base = get_radius(cutoff_, amplitude_, covar_);
             double point = get_radius(cutoff_, amplitude_, covar_ * factor );
 
-            base = person.reliability;  point = base;
+            point = person.reliability; // point = 1.5;
             // calculate the tmp_covar
-            double tmp_covar = base*point/(-2*log(cutoff_/amplitude_));
+            double tmp_covar = point*point/(-2*log(cutoff_/amplitude_));
+
 
             unsigned int width = std::max(1, int( (base + point) / res )),
                           height = std::max(1, int( (base + point) / res ));
@@ -157,12 +155,10 @@ namespace social_navigation_layers
                   double diff = angles::shortest_angular_distance(angle, ma);
                   double a;
                   if(fabs(diff)<M_PI/2)
-                      //a = gaussian(x,y,cx,cy,amplitude_,covar_*factor,covar_,angle);
-                      a = gaussian(x,y,cx,cy,amplitude_,tmp_covar,       tmp_covar,0);
+                      a = gaussian(x,y,cx,cy,amplitude_,tmp_covar,covar_,angle);
                   else
                     //continue;
-                      //a = gaussian(x,y,cx,cy,amplitude_,covar_,       covar_,0);
-                      a = gaussian(x,y,cx,cy,amplitude_,tmp_covar,       tmp_covar,0);
+                      a = gaussian(x,y,cx,cy,amplitude_,covar_,       covar_,0);
 
                   if(a < cutoff_)
                     continue;
@@ -171,12 +167,16 @@ namespace social_navigation_layers
 
               }
             }
+
+
         }
     }
 
+
   };
 };
-PLUGINLIB_EXPORT_CLASS(social_navigation_layers::HumanGroupLayer, costmap_2d::Layer)
+PLUGINLIB_EXPORT_CLASS(social_navigation_layers::HumanObjectLayer, costmap_2d::Layer)
+
 
 
 

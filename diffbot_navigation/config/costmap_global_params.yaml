@@ -12,7 +12,8 @@ global_costmap:
     - {name: obstacles_layer, type: "costmap_2d::ObstacleLayer"}
     - {name: inflation_layer, type: "costmap_2d::InflationLayer"}
     - {name: human_group_layer, type: "social_navigation_layers::HumanGroupLayer"}
-    - {name: proxemic, type: "social_navigation_layers::ProxemicLayer"}
+    - {name: human_object_layer, type: "social_navigation_layers::HumanObjectLayer"}
+    # - {name: proxemic, type: "social_navigation_layers::ProxemicLayer"}
     #- {name: passing, type: "social_navigation_layers::PassingLayer"}
     
   inflation_layer:
